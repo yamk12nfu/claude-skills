@@ -5,3 +5,5 @@
 # 自作スキル（ここに追加していく）
 !requirements-definition/
 !requirements-definition/**
+!implement-from-spec/
+!implement-from-spec/**
