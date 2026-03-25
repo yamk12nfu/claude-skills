@@ -1,0 +1,7 @@
+# サードパーティ製スキル（自作以外すべて除外）
+*
+!.gitignore
+
+# 自作スキル（ここに追加していく）
+!requirements-definition/
+!requirements-definition/**
