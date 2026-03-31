@@ -9,3 +9,7 @@
 !implement-from-spec/**
 !figma-make-spec/
 !figma-make-spec/**
+!verification-checklist/
+!verification-checklist/**
+!shared-agent-skills/
+!shared-agent-skills/**
