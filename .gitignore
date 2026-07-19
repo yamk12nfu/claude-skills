@@ -17,3 +17,13 @@
 !artifact-format/**
 !prepare-pro-review-packet
 !prepare-pro-review-packet/**
+!browser-use-automation/
+!browser-use-automation/**
+!page-improvement-analyzer/
+!page-improvement-analyzer/**
+!skill-freshness/
+!skill-freshness/**
+
+# 生成物は追跡しない
+skill-freshness/last-report.md
+**/__pycache__/

@@ -1,0 +1,43 @@
+{
+  "_comment": "スキルの出所台帳。新しいスキルをインストールしたら必ずここに追記する。type: github-dir(リポジトリのディレクトリと全ファイル照合) / github-file(SKILL.mdのみraw取得で照合) / local(自作・上流なし) / unknown(出所不明。candidateに推定元を記録)",
+  "skills": {
+    "brand-guidelines": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/brand-guidelines" },
+    "doc-coauthoring": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/doc-coauthoring" },
+    "frontend-design": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/frontend-design" },
+    "mcp-builder": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/mcp-builder" },
+    "skill-creator": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/skill-creator" },
+    "theme-factory": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/theme-factory" },
+    "webapp-testing": { "type": "github-dir", "repo": "anthropics/skills", "path": "skills/webapp-testing" },
+
+    "google-cloud-waf-security": { "type": "github-dir", "repo": "google/skills", "path": "skills/cloud/google-cloud-waf-security" },
+    "google-cloud-waf-reliability": { "type": "github-dir", "repo": "google/skills", "path": "skills/cloud/google-cloud-waf-reliability" },
+    "google-cloud-waf-cost-optimization": { "type": "github-dir", "repo": "google/skills", "path": "skills/cloud/google-cloud-waf-cost-optimization" },
+    "google-cloud-recipe-auth": { "type": "github-dir", "repo": "google/skills", "path": "skills/cloud/google-cloud-recipe-auth" },
+    "cloud-run-basics": { "type": "github-dir", "repo": "google/skills", "path": "skills/cloud/cloud-run-basics" },
+
+    "test-driven-development": { "type": "github-dir", "repo": "obra/superpowers", "path": "skills/test-driven-development" },
+    "subagent-driven-development": { "type": "github-dir", "repo": "obra/superpowers", "path": "skills/subagent-driven-development" },
+
+    "planning-with-files": { "type": "github-dir", "repo": "OthmanAdi/planning-with-files", "path": "skills/planning-with-files" },
+
+    "playwright-cli": { "type": "github-file", "repo": "microsoft/playwright", "path": "packages/playwright-core/src/tools/cli-client/skill/SKILL.md" },
+
+    "artifact-format": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+    "browser-use-automation": { "type": "local", "note": "自作" },
+    "figma-make-spec": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+    "implement-from-spec": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+    "page-improvement-analyzer": { "type": "local", "note": "自作" },
+    "prepare-pro-review-packet": { "type": "local", "note": "自作。~/.agents/skills へのsymlink" },
+    "requirements-definition": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+    "resolve-review-findings": { "type": "local", "note": "自作" },
+    "shared-agent-skills": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+    "verification-checklist": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+
+    "anti-reversing-techniques": { "type": "unknown", "candidate": "wshobson/agents ほか複数の集約リポジトリに存在" },
+    "code-review": { "type": "github-file", "repo": "agno-agi/agno", "path": "cookbook/02_agents/16_skills/sample_skills/code-review/SKILL.md", "_note": "agnoフレームワークのcookbookサンプル。get_skill_reference等はagno専用APIでClaude Codeでは動かない。削除候補" },
+    "frontend-testing": { "type": "unknown", "candidate": "langgenius/dify 由来(web/testing/testing.md 派生と明記)" },
+    "senior-architect": { "type": "unknown", "candidate": "davila7/claude-code-templates 等の集約リポジトリ" },
+    "senior-prompt-engineer": { "type": "unknown", "candidate": "davila7/claude-code-templates 等の集約リポジトリ" },
+    "senior-qa": { "type": "unknown", "candidate": "davila7/claude-code-templates 等の集約リポジトリ" }
+  }
+}
