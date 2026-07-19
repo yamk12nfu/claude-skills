@@ -1,5 +1,6 @@
 ---
 name: implement-from-spec
+last-verified: 2026-07-19
 description: 要件定義書（Markdown）から実装を完遂するオーケストレーターskill。要件定義書のパスを受け取り、ファイルベース計画 → subagent駆動開発の順で実装を進める。「要件定義書通りに実装して」「specから実装して」「requirements.mdを実装して」といった指示で使用する。コンテキスト消費を最小化しcompact耐性を確保する。
 ---
 

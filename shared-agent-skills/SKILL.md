@@ -1,5 +1,6 @@
 ---
 name: shared-agent-skills
+last-verified: 2026-07-19
 description: 複数のコーディングエージェント（Claude Code, OpenAI Codex, Cursor, VS Code等）でSkillsを共有するためのセットアップを行う。「スキルを共有したい」「Claude CodeとCodexの両方で使えるようにしたい」「.agents/skills を設定したい」「エージェント間でスキルを共有」「マルチエージェント対応」「AGENTS.mdとCLAUDE.mdを同期したい」といった要求で使用する。
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: artifact-format
+last-verified: 2026-07-19
 description: 成果物（spec・plan・report・design・summary・explainer・要件定義・調査結果など）を作成する際に、Markdown・HTML・両方のどれが適切かを役割（MD=AI+人間用の正本／HTML=人間用の視覚補助）と5つの判断軸（寿命・読み手・編集頻度・視覚要素・git追跡）で判定し、適切な形式で出力する。「ドキュメントを書いて」「specを作って」「レポート生成して」「計画書を作って」「サマリー作成して」「調査結果をまとめて」「設計書を書いて」「explainerを作って」「資料を作って」と言われた時、または何らかの読み物・配布物・成果物を作成する場面で使用する。実装コード（.tsx/.py/.go等のソース）を書く場面では使用しない。
 ---
 
@@ -116,7 +117,7 @@ Step 4: 判断が割れた時のみ、1問だけ確認:
 HTMLを生成する**前に**、以下を必ず参照する。これを怠るとgeneric AI HTML（淡いグラデ＋丸角カード＋無難サンセリフのテンプレ感）が生成される。
 
 1. **`frontend-design` skill を必ず参照する**（任意ではなく必須）
-   - 「Generates creative, polished code and UI design that avoids generic AI aesthetics」が目的のskill
+   - 「テンプレ感のあるデフォルトに読めない、意図的で独自性のあるビジュアルデザイン」の指針を与えるskill
    - HTML artifact生成時のベース品質はこれで担保する
 2. テーマ性を出したい時は **`theme-factory` skill** を併用（10種のプリセットor生成）
 3. Anthropic ブランド準拠が要る時は **`brand-guidelines` skill** を併用
