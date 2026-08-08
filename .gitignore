@@ -23,6 +23,12 @@
 !page-improvement-analyzer/**
 !skill-freshness/
 !skill-freshness/**
+!knowledge-harvest/
+!knowledge-harvest/**
+!aro-propose/
+!aro-propose/**
+!aro-improve/
+!aro-improve/**
 
 # 生成物は追跡しない
 skill-freshness/last-report.md

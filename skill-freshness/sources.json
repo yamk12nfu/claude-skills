@@ -22,10 +22,13 @@
 
     "playwright-cli": { "type": "github-file", "repo": "microsoft/playwright", "path": "packages/playwright-core/src/tools/cli-client/skill/SKILL.md" },
 
+    "aro-improve": { "type": "local", "note": "自作(2026-08-08)。aro Proposal Loop 実装フェーズ起動の薄いラッパー。手順の正本は各 repo の .ai/managed/prompts/improve.md（aro sync 管理）。warikapp で検証後、ai-repo-ops distribution への同梱を提案予定" },
+    "aro-propose": { "type": "local", "note": "自作(2026-08-08)。aro Proposal Loop 提案フェーズ起動の薄いラッパー。手順の正本は各 repo の .ai/managed/prompts/propose.md（aro sync 管理）。warikapp で検証後、ai-repo-ops distribution への同梱を提案予定" },
     "artifact-format": { "type": "local", "note": "自作。my-tasks/skills で管理" },
     "browser-use-automation": { "type": "local", "note": "自作" },
     "figma-make-spec": { "type": "local", "note": "自作。my-tasks/skills で管理" },
     "implement-from-spec": { "type": "local", "note": "自作。my-tasks/skills で管理" },
+    "knowledge-harvest": { "type": "local", "note": "自作(2026-08-04)。aro のセッション終了時ナレッジ候補収穫。安定したら ai-repo-ops distribution の propose.md へ正本を昇格予定" },
     "page-improvement-analyzer": { "type": "local", "note": "自作" },
     "prepare-pro-review-packet": { "type": "local", "note": "自作。~/.agents/skills へのsymlink" },
     "requirements-definition": { "type": "local", "note": "自作。my-tasks/skills で管理" },
