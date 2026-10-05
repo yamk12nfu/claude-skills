@@ -29,7 +29,10 @@
 !aro-propose/**
 !aro-improve/
 !aro-improve/**
+!pstack/
+!pstack/**
 
 # 生成物は追跡しない
 skill-freshness/last-report.md
 **/__pycache__/
+**/node_modules/

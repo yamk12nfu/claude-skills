@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Start Claude Code with the task-list tools on, for pstack sessions.
+#
+#   claude-pstack [claude args...]     e.g. claude-pstack, claude-pstack --resume
+#
+# Claude Code ships TaskCreate/TaskUpdate/TaskList/TaskGet only for older models
+# unless CLAUDE_CODE_ENABLE_TODO_TOOLS is set, and the variable is read once at
+# startup, so a skill cannot turn it on mid-session. This wrapper scopes it to
+# sessions you start for pstack; plain `claude` stays as it was.
+exec claude --settings '{"env":{"CLAUDE_CODE_ENABLE_TODO_TOOLS":"1"}}' "$@"

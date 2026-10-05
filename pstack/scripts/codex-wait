@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Block until every given Codex seat directory has a DONE file, then report.
+#
+#   codex-wait [--timeout <seconds>] <seat-dir>...
+#
+# Use it when the Claude seats of a step are done and the Codex seats are not,
+# or when the session cannot get background-task notifications (claude -p).
+# Prints one line per seat: "<dir> exit=<code>" or "<dir> TIMEOUT".
+# Exits 0 only when every seat finished with exit 0.
+set -euo pipefail
+timeout=3600
+if [ "${1-}" = "--timeout" ]; then timeout="$2"; shift 2; fi
+[ $# -gt 0 ] || { echo "usage: codex-wait [--timeout <seconds>] <seat-dir>..." >&2; exit 2; }
+
+deadline=$(( $(date +%s) + timeout ))
+for dir in "$@"; do
+	until [ -f "$dir/DONE" ] || [ "$(date +%s)" -ge "$deadline" ]; do sleep 5; done
+done
+
+status=0
+for dir in "$@"; do
+	if [ -f "$dir/DONE" ]; then
+		code="$(cat "$dir/DONE")"
+		echo "$dir exit=$code"
+		[ "$code" = "0" ] || status=1
+	else
+		echo "$dir TIMEOUT"
+		status=1
+	fi
+done
+exit $status

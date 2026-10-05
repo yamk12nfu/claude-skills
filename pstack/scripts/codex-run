@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Run one pstack seat on Codex CLI and leave a DONE file when it ends.
+#
+#   codex-run --spec codex:gpt-6-sol:high --mode read --prompt-file <f> --out <dir> [--cd <dir>]
+#
+# --mode read   -> codex sandbox read-only (reviewers, explorers, judges)
+# --mode write  -> codex sandbox workspace-write (code delegates, arena candidates)
+#
+# Writes into --out:
+#   result.md     Codex's final message (the seat's answer)
+#   events.jsonl  the full event stream (for debugging, do not paste into chat)
+#   stderr.log    CLI diagnostics
+#   cmd.txt       the exact command that ran
+#   DONE          the exit code. Present only after Codex exits, success or not.
+#
+# Run it from Claude Code with Bash `run_in_background: true`. Completion is the
+# background-task notification or the DONE file, never a guess.
+set -euo pipefail
+
+spec="" mode="" prompt_file="" out="" cd_dir="$PWD"
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--spec) spec="$2"; shift 2 ;;
+		--mode) mode="$2"; shift 2 ;;
+		--prompt-file) prompt_file="$2"; shift 2 ;;
+		--out) out="$2"; shift 2 ;;
+		--cd) cd_dir="$2"; shift 2 ;;
+		*) echo "codex-run: unknown argument $1" >&2; exit 2 ;;
+	esac
+done
+
+die() { echo "codex-run: $*" >&2; [ -n "$out" ] && mkdir -p "$out" && echo "$*" > "$out/stderr.log" && echo 2 > "$out/DONE"; exit 2; }
+
+[ -n "$spec" ] && [ -n "$mode" ] && [ -n "$prompt_file" ] && [ -n "$out" ] \
+	|| die "usage: codex-run --spec codex:<model>[:<effort>] --mode read|write --prompt-file <f> --out <dir> [--cd <dir>]"
+[ -f "$prompt_file" ] || die "prompt file not found: $prompt_file"
+command -v codex >/dev/null || die "codex CLI not on PATH. Fall back per dispatch.md."
+
+IFS=: read -r family model effort <<<"$spec"
+[ "$family" = "codex" ] && [ -n "$model" ] || die "spec must look like codex:<model>[:<effort>], got '$spec'"
+
+case "$mode" in
+	read) sandbox=read-only ;;
+	write) sandbox=workspace-write ;;
+	*) die "--mode must be read or write, got '$mode'" ;;
+esac
+
+mkdir -p "$out"
+rm -f "$out/DONE" "$out/result.md"
+
+args=(exec -m "$model" -s "$sandbox" -C "$cd_dir" --skip-git-repo-check --json -o "$out/result.md")
+[ -n "${effort:-}" ] && args+=(-c "model_reasoning_effort=\"$effort\"")
+
+printf 'codex' > "$out/cmd.txt"
+printf ' %q' "${args[@]}" >> "$out/cmd.txt"
+printf ' - < %q\n' "$prompt_file" >> "$out/cmd.txt"
+
+set +e
+codex "${args[@]}" - <"$prompt_file" >"$out/events.jsonl" 2>"$out/stderr.log"
+rc=$?
+set -e
+
+[ -s "$out/result.md" ] || { [ $rc -eq 0 ] && rc=3; echo "codex-run: no final message written" >>"$out/stderr.log"; }
+[ $rc -eq 0 ] || grep -E '"type":"(turn\.failed|error)"' "$out/events.jsonl" | tail -1 >>"$out/stderr.log" || true
+echo "$rc" >"$out/DONE"
+echo "codex-run: $spec exit=$rc result=$out/result.md"
+exit "$rc"

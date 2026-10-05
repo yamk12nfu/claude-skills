@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Tests for sticky-reminder: bash scripts/sticky-reminder-test
+set -uo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+hook="$here/sticky-reminder"
+export XDG_STATE_HOME="$(mktemp -d)"
+export CLAUDE_CONFIG_DIR="$XDG_STATE_HOME/claude"
+trap 'rm -rf "$XDG_STATE_HOME"' EXIT
+fails=0
+
+check() {
+	local name="$1" want="$2" got="$3"
+	if [ "$want" = "$got" ]; then echo "ok   $name"; else echo "FAIL $name: want $want, got $got"; fails=$((fails + 1)); fi
+}
+
+gate() {
+	local session="$1" tool="$2" path="${3-}"
+	printf '{"session_id":"%s","tool_name":"%s","tool_input":{"file_path":"%s","content":"x"}}' "$session" "$tool" "$path" |
+		"$hook" gate >/dev/null 2>"$XDG_STATE_HOME/stderr"
+	echo $?
+}
+
+check "gate ignores a session without poteto-mode" 0 "$(gate s0 Edit /repo/a.go)"
+
+"$hook" on s1 >/dev/null
+todo="$("$hook" todo-path s1)"
+check "gate blocks Edit before the todolist exists" 2 "$(gate s1 Edit /repo/a.go)"
+grep -q "$todo" "$XDG_STATE_HOME/stderr"
+check "block message names the todolist path" 0 $?
+check "gate blocks Write before the todolist exists" 2 "$(gate s1 Write /repo/b.go)"
+check "gate blocks NotebookEdit before the todolist exists" 2 "$(gate s1 NotebookEdit /repo/c.ipynb)"
+check "gate allows writing the todolist itself" 0 "$(gate s1 Write "$todo")"
+
+mkdir -p "$(dirname "$todo")"
+echo "notes without checklist items" >"$todo"
+check "gate blocks while the todolist has no checklist item" 2 "$(gate s1 Edit /repo/a.go)"
+printf '%s\n' "- [ ] 1. Reproduce it yourself" "- [ ] 2. skip: no UI" >"$todo"
+check "gate allows Edit once the todolist has checklist items" 0 "$(gate s1 Edit /repo/a.go)"
+
+"$hook" on s2 >/dev/null
+check "gate allows the session todo tool" 0 "$(gate s2 TodoWrite)"
+check "gate allows Edit after the session todo tool ran" 0 "$(gate s2 Edit /repo/a.go)"
+"$hook" on s3 >/dev/null
+gate s3 TaskCreate >/dev/null
+check "gate allows Edit after TaskCreate ran" 0 "$(gate s3 Edit /repo/a.go)"
+
+reminder="$(printf '{"session_id":"s1"}' | "$hook")"
+case "$reminder" in *"$todo"*) r=0 ;; *) r=1 ;; esac
+check "reminder names the todolist path" 0 "$r"
+"$hook" on s4 >/dev/null
+reminder="$(printf '{"session_id":"s4"}' | "$hook")"
+case "$reminder" in *"missing"*) r=0 ;; *) r=1 ;; esac
+check "reminder says the todolist is missing" 0 "$r"
+
+"$hook" off s1 >/dev/null
+check "gate ignores the session after off" 0 "$(gate s1 Edit /repo/a.go)"
+
+tasks="$XDG_STATE_HOME/claude/tasks"
+task() { mkdir -p "$tasks/$1"; printf '{"id":"%s","subject":"s","status":"%s"}' "$2" "$3" >"$tasks/$1/$2.json"; }
+stop() { printf '{"session_id":"%s","stop_hook_active":%s}' "$1" "$2" | "$hook" stop >/dev/null 2>&1; echo $?; }
+
+"$hook" on t1 >/dev/null
+task t1 1 pending; task t1 2 pending
+gate t1 TaskCreate >/dev/null
+check "gate blocks Edit while no task is in_progress" 2 "$(gate t1 Edit /repo/a.go)"
+task t1 1 in_progress
+check "gate allows Edit once a task is in_progress" 0 "$(gate t1 Edit /repo/a.go)"
+check "stop nudges while tasks are open" 2 "$(stop t1 false)"
+check "stop does not nudge twice in a row" 0 "$(stop t1 true)"
+task t1 1 completed; task t1 2 completed
+check "stop allows ending when every task is completed" 0 "$(stop t1 false)"
+check "stop ignores a session without poteto-mode" 0 "$(stop s0 false)"
+
+# Playbook step coverage (bug-fix has steps 1-6).
+"$hook" on p1 >/dev/null
+CLAUDE_CODE_SESSION_ID=p1 "$here/pstack-playbook" bug-fix >/dev/null
+gate p1 TaskCreate >/dev/null
+task p1 1 in_progress; task p1 2 pending; task p1 3 pending
+for n in 1 2 3; do printf '{"id":"%s","subject":"%s. step","status":"%s"}' "$n" "$n" "$(test $n = 1 && echo in_progress || echo pending)" >"$tasks/p1/$n.json"; done
+check "gate blocks Edit while playbook steps are missing" 2 "$(gate p1 Edit /repo/a.go)"
+grep -q "4,5,6" "$XDG_STATE_HOME/stderr"
+check "block message names the missing steps" 0 $?
+check "stop nudges while playbook steps are missing" 2 "$(stop p1 false)"
+printf '{"id":"4","subject":"4. Verify","status":"pending"}' >"$tasks/p1/4.json"
+printf '{"id":"5","subject":"5. skip: no cheap test path","status":"completed"}' >"$tasks/p1/5.json"
+printf '{"id":"6","subject":"6. Run Opening a PR","status":"pending"}' >"$tasks/p1/6.json"
+check "gate allows Edit once every step has a task" 0 "$(gate p1 Edit /repo/a.go)"
+reminder="$(printf '{"session_id":"p1"}' | "$hook")"
+case "$reminder" in *"> 1. step"*"4. Verify"*) r=0 ;; *) r=1 ;; esac
+check "reminder lists open items with the in-progress marker" 0 "$r"
+case "$reminder" in *"5. skip"*) r=1 ;; *) r=0 ;; esac
+check "reminder leaves completed items out" 0 "$r"
+
+"$hook" on p2 >/dev/null
+CLAUDE_CODE_SESSION_ID=p2 "$here/pstack-playbook" feature >/dev/null
+sub="$(printf '{"session_id":"p2","agent_id":"a1","tool_name":"Edit","tool_input":{"file_path":"/repo/x.go"}}' | "$hook" gate >/dev/null 2>&1; echo $?)"
+check "gate lets a subagent edit inside the parent's step" 0 "$sub"
+check "gate still blocks the parent without a todolist" 2 "$(gate p2 Edit /repo/x.go)"
+
+[ "$fails" -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }

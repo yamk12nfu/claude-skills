@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Print the dispatch values for one pstack role, one per line.
+#
+#   pstack-model "how explainer"        -> claude:fable
+#   pstack-model "interrogate reviewers" -> one line per panel seat
+#   pstack-model feature                 -> matches the "feature, refactoring" line
+#   pstack-model --source <role>         -> also prints which file answered (stderr)
+#   pstack-model --list                  -> every role with its resolved values
+#
+# Lookup order: $PSTACK_MODELS_FILE, ~/.claude/rules/pstack-models.md, then the
+# bundled defaults. A role line missing from the user file falls back to the default.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+defaults="$root/templates/pstack-models.md"
+user="${PSTACK_MODELS_FILE:-$HOME/.claude/rules/pstack-models.md}"
+
+show_source=false
+if [ "${1-}" = "--source" ]; then show_source=true; shift; fi
+
+# Emit "role<TAB>values" for every role line inside the ```pstack-models fence.
+role_lines() {
+	[ -f "$1" ] || return 0
+	awk '
+		/^```pstack-models[[:space:]]*$/ { inside = 1; next }
+		/^```/ { inside = 0 }
+		inside && $0 !~ /^[[:space:]]*#/ && index($0, ": ") > 0 {
+			i = index($0, ": ")
+			print substr($0, 1, i - 1) "\t" substr($0, i + 2)
+		}
+	' "$1"
+}
+
+# A query matches a label exactly, or one comma-separated part of it.
+lookup() {
+	role_lines "$1" | awk -F'\t' -v q="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')" '
+		{
+			label = tolower($1)
+			if (label == q) { print $2; exit }
+			n = split(label, parts, /, */)
+			for (k = 1; k <= n; k++) if (parts[k] == q) { print $2; exit }
+		}
+	'
+}
+
+emit() {
+	printf '%s\n' "$1" | tr ',' '\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' \
+		| sed -e 's/^auto$/inherit-parent/'
+}
+
+if [ "${1-}" = "--list" ]; then
+	role_lines "$defaults" | cut -f1 | while IFS= read -r label; do
+		printf '%s: %s\n' "$label" "$("$0" "$label" | paste -sd, - | sed 's/,/, /g')"
+	done
+	exit 0
+fi
+
+[ $# -eq 1 ] || { echo "usage: pstack-model [--source] <role> | --list" >&2; exit 2; }
+
+value="$(lookup "$user" "$1")"
+src="$user"
+if [ -z "$value" ]; then
+	value="$(lookup "$defaults" "$1")"
+	src="$defaults"
+fi
+[ -n "$value" ] || { echo "pstack-model: unknown role '$1'" >&2; exit 1; }
+$show_source && echo "pstack-model: '$1' from $src" >&2
+emit "$value"

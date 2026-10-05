@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# poteto-mode is sticky: once entered in a session it stays on across turns.
+# /poteto-mode drops a marker named after the session id. While the marker
+# exists, each user turn gets the mode's reminder with the open todo items,
+# file edits are blocked until the todolist holds every step of the session's
+# playbook, and ending a turn with open or missing steps is nudged once.
+#
+#   sticky-reminder on <session-id>         enter the mode (called by poteto-mode)
+#   sticky-reminder off <session-id>        leave the mode (user opted out)
+#   sticky-reminder todo-path <session-id>  print the todolist file for the session
+#   sticky-reminder gate                    PreToolUse hook, reads the hook JSON on stdin
+#   sticky-reminder stop                    Stop hook, reads the hook JSON on stdin
+#   sticky-reminder                         UserPromptSubmit hook, reads the hook JSON on stdin
+#
+# The session id defaults to $CLAUDE_CODE_SESSION_ID. The playbook comes from
+# pstack-playbook, which records it per session.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/pstack"
+dir="$state/sticky"
+todo_dir="$state/todo"
+tasks_root="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/tasks"
+
+todo_path() { echo "$todo_dir/$1.md"; }
+
+# Print, one per line: total pending in_progress completed, the playbook name
+# (or -), the missing step numbers (comma list or -), then open item titles.
+summary() {
+	local playbook="-" steps=""
+	if [ -f "$state/playbook/$1" ]; then
+		playbook="$(cat "$state/playbook/$1")"
+		steps="$("$here/pstack-playbook" --steps "$playbook" 2>/dev/null | paste -sd, - || true)"
+	fi
+	python3 - "$tasks_root/$1" "$(todo_path "$1")" "$playbook" "$steps" <<'PY'
+import json, os, re, sys
+tasks_dir, todo_file, playbook, steps = sys.argv[1:]
+counts = {"pending": 0, "in_progress": 0, "completed": 0}
+items, open_items = [], []
+if os.path.isdir(tasks_dir):
+    for f in sorted(os.listdir(tasks_dir), key=lambda f: (len(f), f)):
+        if not f.endswith(".json"):
+            continue
+        try:
+            t = json.load(open(os.path.join(tasks_dir, f)))
+        except Exception:
+            continue
+        st = t.get("status", "pending")
+        if st not in counts:
+            continue
+        counts[st] += 1
+        subject = t.get("subject", "")
+        items.append(subject)
+        if st != "completed":
+            open_items.append(("> " if st == "in_progress" else "") + subject)
+if os.path.isfile(todo_file):
+    for line in open(todo_file):
+        m = re.match(r"\s*- \[([ xX])\] (.*)", line)
+        if m:
+            items.append(m.group(2))
+            if m.group(1) == " ":
+                open_items.append(m.group(2).strip())
+present = set()
+for s in items:
+    m = re.match(r"\s*(\d+)[.)]", s)
+    if m:
+        present.add(m.group(1))
+missing = [n for n in steps.split(",") if n and n not in present]
+print(sum(counts.values()), counts["pending"], counts["in_progress"], counts["completed"])
+print(playbook)
+print(",".join(missing) or "-")
+for s in open_items[:10]:
+    print(s)
+PY
+}
+
+has_todo() { [ -f "$todo_dir/$1.tool" ] || grep -qE '^[[:space:]]*- \[[ xX]\] ' "$(todo_path "$1")" 2>/dev/null; }
+
+sid="${2:-${CLAUDE_CODE_SESSION_ID:-}}"
+case "${1-}" in
+	on)
+		[ -n "$sid" ] || { echo "sticky-reminder: no session id (pass one, or run inside Claude Code)" >&2; exit 2; }
+		mkdir -p "$dir" "$todo_dir"; : >"$dir/$sid"
+		echo "poteto-mode: sticky on for session $sid. Todolist: use the session's todo tool, or write it to $(todo_path "$sid")"
+		exit 0 ;;
+	off) rm -f "$dir/$sid"; echo "poteto-mode: sticky off for session $sid"; exit 0 ;;
+	todo-path) todo_path "$sid"; exit 0 ;;
+	gate)
+		read -r session tool file agent < <(python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+i = d.get("tool_input") or {}
+print(d.get("session_id", "-"), d.get("tool_name", "-"), i.get("file_path") or i.get("notebook_path") or "-", d.get("agent_id") or "-")')
+		[ -f "$dir/$session" ] || exit 0
+		case "$tool" in
+			TodoWrite | TaskCreate | TaskUpdate) mkdir -p "$todo_dir"; : >"$todo_dir/$session.tool"; exit 0 ;;
+		esac
+		[ "$file" = "$(todo_path "$session")" ] && exit 0
+		# A subagent works inside a step the parent already marked in_progress.
+		[ "$agent" = "-" ] || exit 0
+		{ read -r total _pending in_progress _completed; read -r playbook; read -r missing; } < <(summary "$session")
+		if ! has_todo "$session"; then
+			echo "poteto-mode: write the todolist before editing files. Run ~/.claude/skills/pstack/scripts/pstack-playbook <playbook> and TaskCreate one task per line it prints (or write them to $(todo_path "$session") as '- [ ]' lines). A step you drop keeps its number: '<n>. skip: <reason>'. Then retry." >&2
+			exit 2
+		fi
+		if [ "$missing" != "-" ]; then
+			echo "poteto-mode: the todolist lacks step(s) $missing of the $playbook playbook. Add them from ~/.claude/skills/pstack/scripts/pstack-playbook $playbook, each kept or marked '<n>. skip: <reason>'. Then retry." >&2
+			exit 2
+		fi
+		if [ "$total" -gt 0 ] && [ "$in_progress" -eq 0 ]; then
+			echo "poteto-mode: no task is in_progress. Mark the step this edit belongs to in_progress with TaskUpdate (or TaskCreate a task for it), then retry." >&2
+			exit 2
+		fi
+		exit 0 ;;
+	stop)
+		read -r session active < <(python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+print(d.get("session_id", "-"), str(d.get("stop_hook_active", False)).lower())')
+		[ -f "$dir/$session" ] && [ "$active" = "false" ] || exit 0
+		{ read -r total pending in_progress _completed; read -r playbook; read -r missing; } < <(summary "$session")
+		if [ "$missing" != "-" ]; then
+			echo "poteto-mode: the todolist lacks step(s) $missing of the $playbook playbook. Add each one before ending the turn, done or as '<n>. skip: <reason>', so the user sees every step and every skip." >&2
+			exit 2
+		fi
+		[ "$total" -gt 0 ] && [ $((pending + in_progress)) -gt 0 ] || exit 0
+		echo "poteto-mode: the task list has $pending pending and $in_progress in_progress task(s). Before ending the turn, TaskUpdate every step that finished (skip tasks included) to completed. Leave a task open only if it is genuinely still open, and say in your reply what it waits on." >&2
+		exit 2 ;;
+esac
+
+session="$(sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+[ -n "$session" ] && [ -f "$dir/$session" ] || exit 0
+find "$dir" "$todo_dir" "$state/playbook" -type f -mtime +14 -delete 2>/dev/null || true
+{ read -r _total _pending _in_progress _completed; read -r playbook; read -r missing; open_items="$(cat)"; } < <(summary "$session")
+if has_todo "$session"; then
+	todo="Todolist: the task list, or $(todo_path "$session") without task tools. Playbook: $playbook."
+	[ "$missing" != "-" ] && todo="$todo Steps missing from the todolist: $missing."
+	[ -n "$open_items" ] && todo="$todo Open items (> = in progress): $(printf '%s' "$open_items" | paste -sd'|' - | sed 's/|/ | /g')."
+	todo="$todo Keep the list current. A skipped step stays as '<n>. skip: <reason>'."
+else
+	todo="Todolist missing: file edits are blocked until you TaskCreate the playbook steps (~/.claude/skills/pstack/scripts/pstack-playbook <playbook>) or write $(todo_path "$session")."
+fi
+echo "poteto-mode is on for this session. New task? Playbook match or rigor needed -> apply poteto-mode (re-read ~/.claude/skills/pstack/skills/poteto-mode/SKILL.md if it is no longer in context). Casual turn -> don't. $todo User opts out -> run: ~/.claude/skills/pstack/scripts/sticky-reminder off $session"

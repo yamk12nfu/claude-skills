@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Print a playbook's top-level steps as task subjects, and remember which
+# playbook this session runs so the hooks can check the task list against it.
+#
+#   pstack-playbook <name>          e.g. pstack-playbook bug-fix
+#   pstack-playbook --list          playbook names
+#   pstack-playbook --steps <name>  step numbers only (used by the hooks)
+#
+# Each output line is "<n>. <title>". Use it verbatim as the TaskCreate subject,
+# one task per line. A step you skip keeps its number: "<n>. skip: <reason>".
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+dir="$root/skills/poteto-mode/playbooks"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/pstack/playbook"
+
+steps() {
+	awk '/^[0-9]+\. / {
+		n = $1; sub(/\.$/, "", n)
+		t = $0; sub(/^[0-9]+\. /, "", t); gsub(/\*\*/, "", t)
+		if (match(t, /\. [A-Z`(]/)) t = substr(t, 1, RSTART)
+		if (length(t) > 90) t = substr(t, 1, 87) "..."
+		print n ". " t
+	}' "$1"
+}
+
+case "${1-}" in
+	--list) ls "$dir" | sed 's/\.md$//'; exit 0 ;;
+	--steps) f="$dir/$2.md"; [ -f "$f" ] || exit 1; steps "$f" | cut -d. -f1; exit 0 ;;
+	"" | -*) echo "usage: pstack-playbook <name> | --list | --steps <name>" >&2; exit 2 ;;
+esac
+
+name="${1%.md}"
+f="$dir/$name.md"
+[ -f "$f" ] || { echo "pstack-playbook: no playbook '$name'. Known: $(ls "$dir" | sed 's/\.md$//' | paste -sd' ' -)" >&2; exit 1; }
+sid="${2:-${CLAUDE_CODE_SESSION_ID:-}}"
+if [ -n "$sid" ]; then mkdir -p "$state"; echo "$name" >"$state/$sid"; fi
+steps "$f"
