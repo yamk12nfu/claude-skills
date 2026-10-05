@@ -81,6 +81,9 @@ case "${1-}" in
 		[ -n "$sid" ] || { echo "sticky-reminder: no session id (pass one, or run inside Claude Code)" >&2; exit 2; }
 		mkdir -p "$dir" "$todo_dir"; : >"$dir/$sid"
 		echo "poteto-mode: sticky on for session $sid. Todolist: use the session's todo tool, or write it to $(todo_path "$sid")"
+		if [ "${CLAUDE_CODE_ENABLE_TODO_TOOLS:-}" != "1" ]; then
+			echo "poteto-mode: this session has no task panel (CLAUDE_CODE_ENABLE_TODO_TOOLS is not 1). Tell the user in one line: add \"CLAUDE_CODE_ENABLE_TODO_TOOLS\": \"1\" to env in ~/.claude/settings.json (or start with claude-pstack), then restart or resume the session, to see the todo list. Until then use the file above."
+		fi
 		exit 0 ;;
 	off) rm -f "$dir/$sid"; echo "poteto-mode: sticky off for session $sid"; exit 0 ;;
 	todo-path) todo_path "$sid"; exit 0 ;;

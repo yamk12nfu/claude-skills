@@ -13,7 +13,14 @@ bash ~/claude-skills/pstack/scripts/install.sh   # ~/.claude/skills/pstack -> �
 Claude Code はこれを skills-dir プラグイン `pstack@skills-dir` として読み込む。確認には `claude plugin details pstack` を使う。
 新しいセッションで `/setup-pstack` を実行し、役割ごとのモデルを決める。実行しなければ同梱の既定値で動く。
 
-pstack を使うセッションは `claude-pstack` で起動する（`install.sh` が `~/.local/bin` にリンクを張る）。`claude-pstack --resume` も使える。中身は `claude --settings '{"env":{"CLAUDE_CODE_ENABLE_TODO_TOOLS":"1"}}'` で、Cursor と同じように todo list（Claude Code のタスクリスト）が画面に出る。普段の `claude` は今までどおりで、タスクリストは出ない。
+todo list（Claude Code のタスクリスト。入力欄の上に出て、Ctrl+T で開閉する）を出すには、`~/.claude/settings.json` の `env` に次の 2 行を入れる。セッション起動時にしか読まれないので、Orca などどの経路で起動しても効くよう、全体設定にしている。
+
+```json
+"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",
+"CLAUDE_CODE_TODO_REMINDER_MODE": "off"
+```
+
+1 行目でタスクツールを有効にする。2 行目は Claude Code 本体の「タスクツールを使え」という定期的な促しを止め、pstack 以外の会話でタスク一覧が出にくいようにする。設定を変えたくない環境では、`claude-pstack`（`install.sh` が `~/.local/bin` にリンクする）で起動すれば、そのセッションだけ有効になる。
 
 使い方は Cursor 版と同じ。
 
@@ -33,7 +40,7 @@ pstack を使うセッションは `claude-pstack` で起動する（`install.sh
 
 ## todo list
 
-Claude Code は新しいモデル（Opus 5.5、Fable など）ではタスクツール（TaskCreate / TaskUpdate）を既定で無効にしている。有効にする環境変数 `CLAUDE_CODE_ENABLE_TODO_TOOLS` は起動時にしか読まれず、プラグインやスキルからは設定できない。そのため起動コマンドで分けている。
+Claude Code は新しいモデル（Opus 5.5、Fable など）ではタスクツール（TaskCreate / TaskUpdate）を既定で無効にしている。有効にする環境変数 `CLAUDE_CODE_ENABLE_TODO_TOOLS` は起動時にしか読まれず、プラグインやスキルからは設定できない。そのため上記の全体設定で有効にする。
 
 - `references/todo.md` がルールの正本。`scripts/pstack-playbook <name>` が playbook の番号付き手順を `<n>. <見出し>` の形で出力し、セッションの playbook として記録する。モデルはその各行を、そのまま 1 行 1 タスクで `TaskCreate` する。skip する手順も `skip: <理由>` として作り、すぐ完了にする。手順を始めたら `in_progress`、検証が通ったら `completed` にする。
 - フックで強制する（`scripts/sticky-reminder`）。
@@ -41,7 +48,7 @@ Claude Code は新しいモデル（Opus 5.5、Fable など）ではタスクツ
   - `stop`（Stop）。手順が欠けているとき、または未完了のタスクを残してターンを終えようとしたとき、1 回だけ差し戻す。
   - 毎ターンの注意書き（UserPromptSubmit）に、playbook 名と未完了タスクの一覧を載せる。Cursor の todo パネルが常に見えている状態の代わり。
 - 狙いは Cursor と同じで、手順を飛ばすこと自体は禁止しない。飛ばすなら `skip: <理由>` として必ずリストに残す。リポジトリ独自の `/self-review` などは、interrogate / no-comments / deslop の代わりにならない。
-- `claude` で起動したセッションにはタスクツールが無い。その場合は `claude-pstack` の案内を 1 行出し、markdown のチェックリストファイルで代用する。
+- タスクツールが無いセッションでは、`sticky-reminder on` が設定方法を表示する。モデルはそれをユーザーに 1 行で伝え、markdown のチェックリストファイルで代用する。
 
 ## モデル振り分けの仕組み
 
