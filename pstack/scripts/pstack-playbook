@@ -4,7 +4,7 @@
 #
 #   pstack-playbook <name>          e.g. pstack-playbook bug-fix
 #   pstack-playbook --list          playbook names
-#   pstack-playbook --steps <name>  step numbers only (used by the hooks)
+#   pstack-playbook --steps <name>  step numbers only, such as 8a (used by the hooks)
 #
 # Each output line is "<n>. <title>". Use it verbatim as the TaskCreate subject,
 # one task per line. A step you skip keeps its number: "<n>. skip: <reason>".
@@ -19,6 +19,12 @@ steps() {
 		t = $0; sub(/^[0-9]+\. /, "", t); gsub(/\*\*/, "", t)
 		if (match(t, /\. [A-Z`(]/)) t = substr(t, 1, RSTART)
 		if (length(t) > 90) t = substr(t, 1, 87) "..."
+		# Opening a PR hides two passes that get closed with it unrun, so they
+		# become steps of their own that each need a task.
+		if (t ~ /Opening a PR/) {
+			print n "a. Run /deslop over the diff before commit."
+			print n "b. Run /no-comments over the diff before review."
+		}
 		print n ". " t
 	}' "$1"
 }

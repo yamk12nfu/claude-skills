@@ -43,6 +43,7 @@ todo list（Claude Code のタスクリスト。入力欄の上に出て、Ctrl+
 Claude Code は新しいモデル（Opus 5.5、Fable など）ではタスクツール（TaskCreate / TaskUpdate）を既定で無効にしている。有効にする環境変数 `CLAUDE_CODE_ENABLE_TODO_TOOLS` は起動時にしか読まれず、プラグインやスキルからは設定できない。そのため上記の全体設定で有効にする。
 
 - `references/todo.md` がルールの正本。`scripts/pstack-playbook <name>` が playbook の番号付き手順を `<n>. <見出し>` の形で出力し、セッションの playbook として記録する。モデルはその各行を、そのまま 1 行 1 タスクで `TaskCreate` する。skip する手順も `skip: <理由>` として作り、すぐ完了にする。手順を始めたら `in_progress`、検証が通ったら `completed` にする。
+- 「Run Opening a PR」の手順は、`<n>a. /deslop`、`<n>b. /no-comments`、`<n>. Run Opening a PR` の 3 タスクに分けて出す。PR 作成を 1 タスクで完了にして、中の 2 つを飛ばす抜けが実際に起きたため。それぞれ実行するか `skip: <理由>` を残すまで、フックは欠けとして扱う。
 - フックで強制する（`scripts/sticky-reminder`）。
   - `gate`（PreToolUse）。poteto-mode 中は、本体スレッドの Edit / Write を次のあいだ拒否する。todo が無い。記録した playbook の手順番号に欠けがある（完了か `<n>. skip: <理由>` が必要）。`in_progress` のタスクが 1 つも無い。サブエージェントの編集は、親が進行中にしている手順の中の作業として通す。
   - `stop`（Stop）。手順が欠けているとき、または未完了のタスクを残してターンを終えようとしたとき、1 回だけ差し戻す。

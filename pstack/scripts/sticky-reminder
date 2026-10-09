@@ -61,7 +61,7 @@ if os.path.isfile(todo_file):
                 open_items.append(m.group(2).strip())
 present = set()
 for s in items:
-    m = re.match(r"\s*(\d+)[.)]", s)
+    m = re.match(r"\s*(\d+[a-z]?)[.)]", s)
     if m:
         present.add(m.group(1))
 missing = [n for n in steps.split(",") if n and n not in present]
