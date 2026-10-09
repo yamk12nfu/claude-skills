@@ -1,6 +1,6 @@
 # pstack for Claude Code + Codex
 
-Cursor の [pstack](https://github.com/cursor/plugins/tree/main/pstack)（poteto 作、v0.15.5、MIT）を Claude Code に移植したもの。
+Cursor の [pstack](https://github.com/cursor/plugins/tree/main/pstack)（poteto 作、MIT）を Claude Code に移植したもの。v0.15.5 を土台に、v0.15.15 までの変更のうち Cursor に依存しない手順の改善を取り込んだ。
 司令塔は Claude Code。各スキルのサブエージェント（パネルの席）は、役割ごとに **Claude サブエージェント** か **Codex CLI（`codex exec`）** に振り分けて実行する。
 Cursor 版で Grok が担当していた席は Claude と Codex で置き換えた。
 
@@ -36,7 +36,7 @@ todo list（Claude Code のタスクリスト。入力欄の上に出て、Ctrl+
 2. **司令塔**。`/poteto-mode` がタスクを playbook（23 本）に当てはめ、その手順を todo にコピーして進める。一度入ると sticky になる（後述）。
 3. **専門スキル**。playbook の各ステップが `how` / `why` / `architect` / `arena` / `interrogate` / `swarm` / `reflect` などを名指しで呼ぶ。各スキルは自分の役割行を `~/.claude/rules/pstack-models.md` から読み、席の数と担当モデルを決める。
 
-仕上げは `unslop` / `technical-writing` / `no-comments` / `deslop` / `tdd`、土台は `principle-*`（23 本）。
+仕上げは `unslop` / `technical-writing` / `no-comments` / `deslop` / `tdd`、計測の点検は `benchmark-checklist`、繰り返す失敗を仕組みで塞ぐのは `/correct`、土台は `principle-*`（24 本）。
 
 ## todo list
 
@@ -95,6 +95,7 @@ Claude Code は新しいモデル（Opus 5.5、Fable など）ではタスクツ
 | Cursor 組み込みの `create-skill` | `skill-creator` スキル |
 | Bugbot / Origin | レビューボット全般（Bugbot、CodeRabbit、Codex review など）。Origin は削除し、`gh` のみにした |
 | `make-bot-ui`、benny automation、docs/guide | Cursor（Grok Bot、Cursor automations）専用なので移植していない |
+| v0.15.6〜v0.15.15 の `/poteto-help`、監査 tick の `/loop 1h` 化と `/goal` 廃止、組み込み PR ツールの規則、モデル既定の変更（Sol 廃止、Opus xhigh） | 取り込んでいない。`/poteto-help` は Cursor の操作説明が中心、監査 tick は goal ファイルと `/loop 30m` で代替済み、残りは Cursor のツールとモデル名に依存するため |
 
 ### Claude Code + Codex 特有の注意
 
